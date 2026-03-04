@@ -1,8 +1,6 @@
 package com.licked.macepaniclogout
 
 import net.fabricmc.api.ClientModInitializer
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.MinecraftClient
 import net.minecraft.item.Items
@@ -13,12 +11,12 @@ import net.minecraft.util.math.Vec3d
  * Client-side "panic logout" if a nearby player is holding a Mace and moving too fast.
  *
  * - Client-only: runs purely on your client tick loop.
- * - "Regular disconnect": uses the vanilla translatable key "disconnect.disconnected".
- * - Has a Mod Menu config screen (and a client command to open it).
+ * - "Regular disconnect": uses the vanilla translatable key "multiplayer.disconnect.generic".
+ * - Settings are managed from the Mod Menu config screen.
  */
 object MacePanicLogoutClient : ClientModInitializer {
 
-    private val disconnectText = Text.translatable("disconnect.disconnected")
+    private val disconnectText = Text.translatable("multiplayer.disconnect.generic")
     private var cooldownLeft = 0
 
     override fun onInitializeClient() {
@@ -29,38 +27,6 @@ object MacePanicLogoutClient : ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(ClientTickEvents.EndTick { client ->
             onEndClientTick(client)
         })
-
-        // Command to open the config screen: /macepaniclogout config
-        ClientCommandRegistrationCallback.EVENT.register(ClientCommandRegistrationCallback { dispatcher, _ ->
-            dispatcher.register(
-                ClientCommandManager.literal("escapeelytramacer")
-                    .then(
-                        ClientCommandManager.literal("config")
-                            .executes {
-                                val mc = MinecraftClient.getInstance()
-                                mc.execute {
-                                    mc.setScreen(MacePanicConfigScreen(mc.currentScreen))
-                                }
-                                1
-                            }
-                    )
-                    .then(
-                        ClientCommandManager.literal("reload")
-                            .executes {
-                                MacePanicConfigManager.load()
-                                1
-                            }
-                    )
-                    .then(
-                        ClientCommandManager.literal("test")
-                            .executes {
-                                val mc = MinecraftClient.getInstance()
-                                disconnectNow(mc)
-                                1
-                            }
-                    )
-            )
-        })
     }
 
     private fun onEndClientTick(client: MinecraftClient) {
@@ -69,6 +35,7 @@ object MacePanicLogoutClient : ClientModInitializer {
         if (client.networkHandler == null) return
 
         val cfg = MacePanicConfigManager.config
+        if (!cfg.enabled) return
 
         // Tick-based cooldown
         if (cooldownLeft > 0) {

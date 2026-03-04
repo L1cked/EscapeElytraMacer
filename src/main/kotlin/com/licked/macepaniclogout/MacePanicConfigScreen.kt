@@ -11,6 +11,7 @@ class MacePanicConfigScreen(private val parent: Screen?) : Screen(Text.literal("
 
     private val snapshot = MacePanicConfigManager.config.copy()
 
+    private lateinit var enabledToggle: ButtonWidget
     private lateinit var radiusSlider: DoubleSlider
     private lateinit var speedSlider: DoubleSlider
     private lateinit var downYSlider: DoubleSlider
@@ -29,8 +30,16 @@ class MacePanicConfigScreen(private val parent: Screen?) : Screen(Text.literal("
             val w = (width.coerceAtMost(320) - 40).coerceAtLeast(140)
             val x = centerX - w / 2
 
+            enabledToggle = ButtonWidget.builder(enabledText(c.enabled)) { _ ->
+                val now = !MacePanicConfigManager.config.enabled
+                MacePanicConfigManager.update { it.enabled = now }
+                enabledToggle.message = enabledText(now)
+                refreshControlState()
+            }.dimensions(x, startY, w, 20).build()
+            addDrawableChild(enabledToggle)
+
             radiusSlider = DoubleSlider(
-                x, startY, w, 20,
+                x, startY + row, w, 20,
                 Text.literal("Radius"),
                 c.radiusBlocks,
                 1.0, 20.0
@@ -40,33 +49,33 @@ class MacePanicConfigScreen(private val parent: Screen?) : Screen(Text.literal("
             addDrawableChild(radiusSlider)
 
             speedSlider = DoubleSlider(
-                x, startY + row, w, 20,
+                x, startY + row * 2, w, 20,
                 Text.literal("Speed threshold"),
                 c.speedThreshold,
-                0.2, 3.5
+                0.2, 4.5
             ) { newValue ->
                 MacePanicConfigManager.update { it.speedThreshold = newValue }
             }
             addDrawableChild(speedSlider)
 
-            fallingToggle = ButtonWidget.builder(toggleText(c.requireFalling)) { _ ->
+            fallingToggle = ButtonWidget.builder(fallingText(c.requireFalling)) { _ ->
                 val now = !MacePanicConfigManager.config.requireFalling
                 MacePanicConfigManager.update { it.requireFalling = now }
-                fallingToggle.message = toggleText(now)
-                downYSlider.active = now
-            }.dimensions(x, startY + row * 2, w, 20).build()
+                fallingToggle.message = fallingText(now)
+                refreshControlState()
+            }.dimensions(x, startY + row * 3, w, 20).build()
             addDrawableChild(fallingToggle)
 
             downYSlider = DoubleSlider(
-                x, startY + row * 3, w, 20,
+                x, startY + row * 4, w, 20,
                 Text.literal("Downward Y required"),
                 c.downYThreshold,
                 -2.5, 0.0
             ) { newValue ->
                 MacePanicConfigManager.update { it.downYThreshold = newValue }
             }
-            downYSlider.active = c.requireFalling
             addDrawableChild(downYSlider)
+            refreshControlState()
 
             // Bottom buttons
             val bw = 120
@@ -81,6 +90,7 @@ class MacePanicConfigScreen(private val parent: Screen?) : Screen(Text.literal("
                 ButtonWidget.builder(Text.translatable("gui.cancel")) {
                     // revert to snapshot
                     MacePanicConfigManager.update {
+                        it.enabled = snapshot.enabled
                         it.radiusBlocks = snapshot.radiusBlocks
                         it.speedThreshold = snapshot.speedThreshold
                         it.requireFalling = snapshot.requireFalling
@@ -113,7 +123,7 @@ class MacePanicConfigScreen(private val parent: Screen?) : Screen(Text.literal("
         context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 18, 0xFFFFFFFF.toInt())
         context.drawCenteredTextWithShadow(
             textRenderer,
-            Text.literal("Also available via /escapeelytramacer config"),
+            Text.literal("Open settings from Mod Menu"),
             width / 2,
             34,
             0xFFA0A0A0.toInt()
@@ -129,8 +139,20 @@ class MacePanicConfigScreen(private val parent: Screen?) : Screen(Text.literal("
         }
     }
 
-    private fun toggleText(on: Boolean): Text {
+    private fun enabledText(on: Boolean): Text {
+        return Text.literal("Protection enabled: " + if (on) "ON" else "OFF")
+    }
+
+    private fun fallingText(on: Boolean): Text {
         return Text.literal("Require falling: " + if (on) "ON" else "OFF")
+    }
+
+    private fun refreshControlState() {
+        val c = MacePanicConfigManager.config
+        radiusSlider.active = c.enabled
+        speedSlider.active = c.enabled
+        fallingToggle.active = c.enabled
+        downYSlider.active = c.enabled && c.requireFalling
     }
 
     private class DoubleSlider(

@@ -3,7 +3,6 @@ package com.licked.macepaniclogout
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonSyntaxException
 import net.fabricmc.loader.api.FabricLoader
-import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
@@ -11,10 +10,11 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
 data class MacePanicConfig(
-    var radiusBlocks: Double = 6.0,
-    var speedThreshold: Double = 1.10,     // blocks/tick
+    var enabled: Boolean = true,
+    var radiusBlocks: Double = 20.0,
+    var speedThreshold: Double = 1.90,     // blocks/tick
     var requireFalling: Boolean = true,
-    var downYThreshold: Double = -0.50,    // only used if requireFalling == true
+    var downYThreshold: Double = -0.01,    // only used if requireFalling == true
     var checkEveryTicks: Long = 1,         // 1 = every tick
     var cooldownTicks: Int = 30            // ~1.5s
 )
@@ -35,6 +35,10 @@ object MacePanicConfigManager {
             val text = path.readText()
             val loaded = gson.fromJson(text, MacePanicConfig::class.java)
             if (loaded != null) {
+                // Backward compatibility for configs created before the "enabled" toggle existed.
+                if (!text.contains("\"enabled\"")) {
+                    loaded.enabled = true
+                }
                 config = sanitize(loaded)
             }
         } catch (_: JsonSyntaxException) {
@@ -65,8 +69,8 @@ object MacePanicConfigManager {
     private fun sanitize(c: MacePanicConfig): MacePanicConfig {
         // Clamp to sane ranges (prevents weird values from manual edits)
         c.radiusBlocks = c.radiusBlocks.coerceIn(1.0, 64.0)
-        c.speedThreshold = c.speedThreshold.coerceIn(0.01, 10.0)
-        c.downYThreshold = c.downYThreshold.coerceIn(-10.0, 10.0)
+        c.speedThreshold = c.speedThreshold.coerceIn(0.01, 4.5)
+        c.downYThreshold = c.downYThreshold.coerceIn(-10.0, 0.0)
         c.checkEveryTicks = c.checkEveryTicks.coerceIn(1, 20)
         c.cooldownTicks = c.cooldownTicks.coerceIn(0, 200)
         return c
